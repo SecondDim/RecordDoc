@@ -1,0 +1,63 @@
+FROM ubuntu:16.04
+# FROM alpine:latest
+
+# Set correct environment variables.
+ENV HOME /root
+USER root
+
+# Update ubuntu
+RUN apt-get update && apt-get -y upgrade
+
+# Install packages for building ruby
+RUN apt-get install -y build-essential curl git-core \
+    zlib1g-dev libssl-dev libreadline-dev libyaml-dev libxml2-dev libxslt-dev \
+    libmysqlclient-dev \
+    imagemagick gsfonts nodejs tzdata\
+    && apt-get clean
+# libsqlite3-dev sqlite3 libxslt1-dev libcurl4-openssl-dev python-software-properties libffi-dev
+
+# Install packages for building ruby
+# RUN apt-get install -y build-essential curl git-core zlib1g-dev\
+#     libssl-dev libreadline-dev libyaml-dev libxml2-dev libxslt-dev \
+#     libsqlite3-dev sqlite3 libxslt1-dev libcurl4-openssl-dev \
+#     python-software-properties libffi-dev libmysqlclient-dev \
+#     && apt-get clean
+
+# Install rbenv, ruby-build and ruby 2.5.0
+RUN git clone https://github.com/sstephenson/rbenv.git /root/.rbenv \
+    && git clone https://github.com/sstephenson/ruby-build.git /root/.rbenv/plugins/ruby-build \
+    && /root/.rbenv/plugins/ruby-build/install.sh
+ENV PATH /root/.rbenv/shims:/root/.rbenv/bin:$PATH
+RUN echo 'eval "$(rbenv init -)"' >> /root/.bashrc \
+    && rbenv install 2.5.0 \
+    && rbenv global 2.5.0
+# Copy test file
+# COPY hello.rb /root
+# RUN eval "$(rbenv init -)" && ruby /root/hello.rb
+
+RUN mkdir /app
+WORKDIR /app
+COPY app/Gemfile /app/Gemfile
+COPY app/Gemfile.lock /app/Gemfile.lock
+RUN yes | gem update \
+    && gem install bundler -v $(tail -n 1 Gemfile.lock | tr -d ' ') \
+    && bundle install \
+    && bundle exec rake assets:precompile \
+    && rbenv rehash \
+    && echo "export RAILS_ENV=production" >> /root/.bashrc
+ENV RAILS_ENV production
+COPY app/. /app
+
+# Init configurations
+COPY config/. /app/config
+
+# COPY entrypoint.sh /usr/bin/
+# RUN chmod +x /usr/bin/entrypoint.sh
+# ENTRYPOINT ["entrypoint.sh"]
+EXPOSE 3000
+# CMD ["bin/rails", "server", "-b", "0.0.0.0"]
+CMD eval "$(rbenv init -)" && bin/rails server -b 0.0.0.0
+
+# TODO nginx with passenger
+# TODO EXPOSE PORT
+# TODO assets:precompile can exec after continer start

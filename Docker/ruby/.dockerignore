@@ -1,0 +1,12 @@
+app/M/
+
+app/tmp/
+app/log/
+app/vendor/bundle
+app/node_modules
+app/public/assets
+app/public/uploads
+
+app/.DS_Store
+app/.git/*
+app/.gitignore
